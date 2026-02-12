@@ -27,7 +27,7 @@ const origin = env.CORS_ORIGIN
 
 app.use(
     cors({
-        origin: 'http://localhost:3000',
+        origin: origin,
         credentials: true, // Allow cookies to be sent
     })
 );
