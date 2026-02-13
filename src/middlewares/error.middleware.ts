@@ -60,6 +60,16 @@ export const errorHandler = (
         message = 'Invalid data provided';
     }
 
+    // Log error for debugging
+    logger.error(`Error: ${err.message}`, {
+        statusCode,
+        path: req.path,
+        method: req.method,
+    });
+
+    // Log full error stack for debugging
+    console.error('Full error details:', err);
+
     // Log error details
     logger.error(`${req.method} ${req.path}`, {
         error: message,

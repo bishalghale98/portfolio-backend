@@ -27,6 +27,14 @@ export const authenticate = async (
         // Verify token
         const decoded = verifyToken(token);
 
+        if (!decoded.id) {
+            res.status(401).json({
+                success: false,
+                message: 'Invalid or expired token. Please login again.',
+            });
+            return;
+        }
+
         // Attach user info to request
         req.user = {
             id: decoded.id,

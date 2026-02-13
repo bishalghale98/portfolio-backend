@@ -7,8 +7,8 @@ import upload from "../../middlewares/upload.middleware";
 const router = Router();
 
 router.get("/", getProfile);
-router.post("/", authenticate, upload.single('profile'), createProfile);
-router.put("/", authenticate, upload.single('profile'), updateProfile);
+router.post("/", authenticate, upload.single('image'), createProfile);
+router.put("/", authenticate, upload.single('image'), updateProfile);
 router.delete("/", authenticate, deleteProfile);
 
 export default router;

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "../../config/dbConnect";
 import cloudinary from "../../config/cloudinary";
+import { errorResponse, successResponse } from "../../utils/apiResponse";
 
 // GET /api/profile?slug=bishal-ghale
 export const getProfile = async (req: Request, res: Response) => {
@@ -40,13 +41,13 @@ export const getProfile = async (req: Request, res: Response) => {
         });
 
         if (!profile) {
-            return res.status(404).json({ error: "Profile not found" });
+            return errorResponse({ res, message: 'Profile not found' });
         }
 
-        return res.json(profile);
+        return successResponse({ res, data: profile, message: "Profile fetched successfully" });
     } catch (error) {
         console.error("Error fetching profile:", error);
-        return res.status(500).json({ error: "Failed to fetch profile" });
+        return errorResponse({ res, message: "Failed to fetch profile" });
     }
 };
 
@@ -57,18 +58,11 @@ export const createProfile = async (req: Request, res: Response) => {
     try {
         const user = req.user; // from auth middleware (JWT/session)
 
-        if (!user) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
 
 
 
         if (!req.file) {
-            res.status(400).json({
-                success: false,
-                message: 'No file uploaded',
-            });
-            return;
+            return errorResponse({ res, message: 'No file uploaded' });
         }
 
         // Get Cloudinary file info
@@ -79,14 +73,11 @@ export const createProfile = async (req: Request, res: Response) => {
 
         // Get user's current avatar to delete old one
         const existingProfile = await prisma.profile.findUnique({
-            where: { userId: user.id },
+            where: { userId: user?.id },
         });
 
         if (existingProfile) {
-            return res.status(400).json({
-                success: false,
-                message: 'Profile already exists',
-            });
+            return errorResponse({ res, message: 'Profile already exists' });
         }
 
 
@@ -95,16 +86,16 @@ export const createProfile = async (req: Request, res: Response) => {
         const profile = await prisma.profile.create({
             data: {
                 ...body,
-                avatar: file.path,
+                avatarUrl: file.path,
                 avatarPublicId: file.filename,
-                userId: user.id,
+                userId: user?.id,
             },
         });
 
-        return res.status(201).json(profile);
+        return successResponse({ res, data: profile, message: "Profile created successfully" })
     } catch (error) {
         console.error("Error creating profile:", error);
-        return res.status(500).json({ error: "Failed to create profile" });
+        return errorResponse({ res, message: "Failed to create profile" });
     }
 };
 
@@ -115,48 +106,46 @@ export const updateProfile = async (req: Request, res: Response) => {
     try {
         const user = req.user;
 
-        if (!user) {
-            return res.status(401).json({ error: "Unauthorized" });
-        }
-
-
         const file = req.file as Express.Multer.File & {
             path: string;
             filename: string;
         };
 
         const existingProfile = await prisma.profile.findUnique({
-            where: { userId: user.id },
+            where: { userId: user?.id },
             select: {
                 avatarPublicId: true,
             }
         });
 
+
         // Delete old avatar from Cloudinary if exists
-        if (existingProfile?.avatarPublicId) {
+        if (existingProfile?.avatarPublicId && file) {
             try {
                 await cloudinary.uploader.destroy(existingProfile.avatarPublicId);
             } catch (error) {
-                // Log error but don't fail the upload
                 console.error('Failed to delete old avatar:', error);
             }
         }
 
         const { slug, ...updateData } = req.body;
 
+
         const profile = await prisma.profile.update({
-            where: { slug },
+            where: { userId: user?.id },
             data: {
                 ...updateData,
-                avatar: file?.path,
-                avatarPublicId: file?.filename,
+                ...(file && {
+                    avatarUrl: file.path,
+                    avatarPublicId: file.filename,
+                }),
             },
         });
 
-        return res.json(profile);
+        return successResponse({ res, data: profile, message: "Profile updated successfully" });
     } catch (error) {
         console.error("Error updating profile:", error);
-        return res.status(500).json({ error: "Failed to update profile" });
+        return errorResponse({ res, message: "Failed to update profile" });
     }
 };
 
@@ -168,13 +157,13 @@ export const deleteProfile = async (req: Request, res: Response) => {
         const user = req.user;
 
         if (!user) {
-            return res.status(401).json({ error: "Unauthorized" });
+            return errorResponse({ res, message: "Unauthorized" });
         }
 
         const slug = req.query.slug as string;
 
         if (!slug) {
-            return res.status(400).json({ error: "Slug is required" });
+            return errorResponse({ res, message: "Slug is required" });
         }
 
         const existingProfile = await prisma.profile.findUnique({
@@ -198,9 +187,9 @@ export const deleteProfile = async (req: Request, res: Response) => {
             where: { slug },
         });
 
-        return res.json({ message: "Profile deleted successfully" });
+        return successResponse({ res, message: "Profile deleted successfully" });
     } catch (error) {
         console.error("Error deleting profile:", error);
-        return res.status(500).json({ error: "Failed to delete profile" });
+        return errorResponse({ res, message: "Failed to delete profile" });
     }
 };
